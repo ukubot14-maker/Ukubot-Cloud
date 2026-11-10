@@ -159,13 +159,6 @@ app.post("/api/deployments", ownerOnly, async (req, res) => {
   })();
 });
 
-app.post("/api/projects/:name/redeploy", ownerOnly, async (req, res) => {
-  const project = projects.get(req.params.name);
-  if (!project) return res.status(404).json({ error: "Project not found." });
-  req.body = { name: project.name, repository: project.repository, env: req.body?.env || {} };
-  return app._router.handle({ ...req, method: "POST", url: "/api/deployments", originalUrl: "/api/deployments" }, res, () => {});
-});
-
 app.delete("/api/projects/:name", ownerOnly, async (req, res) => {
   const project = projects.get(req.params.name);
   if (!project) return res.status(404).json({ error: "Project not found." });
