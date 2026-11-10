@@ -121,6 +121,7 @@ app.post("/api/deployments", ownerOnly, async (req, res) => {
   catch (error) { return res.status(400).json({ error: error.message }); }
 
   const id = crypto.randomUUID();
+  const alwaysCpu = req.body.alwaysCpu === true;
   const job = { id, name, status: "queued", output: [], createdAt: new Date().toISOString() };
   jobs.set(id, job);
   const old = projects.get(name);
@@ -141,7 +142,7 @@ app.post("/api/deployments", ownerOnly, async (req, res) => {
       job.output = job.output.slice(-100);
     };
     try {
-      const result = await deploy({ name, repository, env, onOutput: append });
+      const result = await deploy({ name, repository, env, alwaysCpu, onOutput: append });
       job.status = "succeeded";
       job.url = result.url;
       job.completedAt = new Date().toISOString();
@@ -197,18 +198,6 @@ app.use((error, _req, res, _next) => {
 
 async function start() {
   await loadState();
-  const keyFile = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  if (keyFile) {
-    try {
-      await fs.access(keyFile);
-      const { execFile } = require("node:child_process");
-      const { promisify } = require("node:util");
-      await promisify(execFile)("gcloud", ["auth", "activate-service-account", "--key-file", keyFile, "--quiet"], { timeout: 30000 });
-    } catch (error) {
-      console.error("Google Cloud service-account authentication failed:", error.message);
-      process.exit(1);
-    }
-  }
   app.listen(PORT, "0.0.0.0", () => console.log(`Ukubot Cloud control plane listening on port ${PORT}`));
 }
 start();
