@@ -55,7 +55,7 @@ $("deployForm").onsubmit = async event => {
     const env = parseEnv();
     const result = await request("/api/deployments", {
       method: "POST",
-      body: JSON.stringify({ name: $("name").value.trim(), repository: $("repo").value.trim(), env })
+      body: JSON.stringify({ name: $("name").value.trim(), repository: $("repo").value.trim(), env, alwaysCpu: $("alwaysCpu").checked })
     });
     toast("Deployment started. You can watch its progress below.");
     watchJob(result.id);
