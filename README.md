@@ -42,7 +42,7 @@ Create a dedicated service account for the control plane. Grant it the minimum r
 - Artifact Registry Writer (`roles/artifactregistry.writer`)
 - Service Account User (`roles/iam.serviceAccountUser`)
 
-Create a JSON key for that service account and store it as a Secret Manager secret. Mount it into the control-plane Cloud Run service at `/secrets/gcloud-key.json`; set `GOOGLE_APPLICATION_CREDENTIALS=/secrets/gcloud-key.json`. Avoid committing the key to GitHub.
+Attach this service account directly to the control-plane Cloud Run service with `--service-account=ukubot-cloud-deployer@YOUR_PROJECT_ID.iam.gserviceaccount.com`. The control plane's Google Cloud CLI uses the attached service identity; do not create or commit a service-account JSON key.
 
 ## Deploy the control plane
 
@@ -61,10 +61,10 @@ gcloud run deploy ukubot-cloud-control \
   --region us-west1 \
   --allow-unauthenticated \
   --set-env-vars GOOGLE_CLOUD_PROJECT=YOUR_PROJECT_ID,GOOGLE_CLOUD_REGION=us-west1,OWNER_TOKEN=YOUR_LONG_RANDOM_TOKEN,ALLOWED_ORIGINS=https://YOUR-ACCOUNT.github.io \
-  --memory 1Gi --cpu 1 --max-instances 1 --min-instances 0
+  --service-account=ukubot-cloud-deployer@YOUR_PROJECT_ID.iam.gserviceaccount.com \\\n  --memory 1Gi --cpu 1 --max-instances 1 --min-instances 0
 ```
 
-For the service-account key, configure a Secret Manager volume mount in the Cloud Run service settings. Do not put the JSON key contents in plain environment variables or source control.
+Attach the dedicated deployer service account to the control-plane Cloud Run service. Do not create or commit service-account keys.
 
 The control plane's container needs the Google Cloud CLI and Git; the included Dockerfile installs them. When using a mounted key, the app activates it with gcloud on startup.
 
