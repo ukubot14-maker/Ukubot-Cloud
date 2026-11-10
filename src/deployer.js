@@ -25,8 +25,10 @@ async function run(command, args, options = {}) {
 async function deploy({ name, repository, env = {}, alwaysCpu = false, onOutput = () => {} }) {
   if (!PROJECT) throw new Error("GOOGLE_CLOUD_PROJECT is not configured.");
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ukubot-build-"));
+  const envDir = await fs.mkdtemp(path.join(os.tmpdir(), "ukubot-env-"));
   const service = serviceName(name);
-  const envFile = path.join(dir, "runtime-env.yaml");
+  // Keep secrets OUTSIDE the source directory so they are never uploaded to Cloud Build.
+  const envFile = path.join(envDir, "runtime-env.yaml");
 
   try {
     onOutput("Cloning source repository…");
@@ -67,6 +69,7 @@ async function deploy({ name, repository, env = {}, alwaysCpu = false, onOutput 
     return { service, url, region: REGION };
   } finally {
     await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+    await fs.rm(envDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
