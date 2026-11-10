@@ -70,10 +70,10 @@ gcloud run deploy ukubot-cloud-control \
   --allow-unauthenticated \
   --service-account ukubot-cloud-deployer@YOUR_PROJECT_ID.iam.gserviceaccount.com \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=YOUR_PROJECT_ID,GOOGLE_CLOUD_REGION=us-west1,OWNER_TOKEN=YOUR_LONG_RANDOM_TOKEN,ALLOWED_ORIGINS=https://YOUR-ACCOUNT.github.io" \
-  --memory 1Gi --cpu 1 --max-instances 1 --min-instances 0
+  --memory 1Gi --cpu 1 --no-cpu-throttling --max-instances 1 --min-instances 0
 ```
 
-The control plane container includes Git and the Google Cloud CLI. Its attached service account performs the deployment commands.
+The control plane container includes Git and the Google Cloud CLI. Its attached service account performs the deployment commands. The control plane uses always-allocated CPU so its asynchronous build/deploy task can continue after the dashboard request returns; it can still scale to zero when idle. This may incur compute charges while a deployment is running.
 
 ## Dashboard
 
