@@ -41,6 +41,7 @@
           <label>Project name</label><input id="name" required pattern="[a-z][a-z0-9-]{1,30}[a-z0-9]" placeholder="fabric-pro-api">
           <label>Public GitHub repository</label><input id="repo" required type="url" placeholder="https://github.com/owner/repository">
           <label>Runtime environment variables <small>(optional, one KEY=value per line)</small></label><textarea id="env" rows="4" placeholder="NODE_ENV=production&#10;CORS_ORIGINS=https://your-site.github.io"></textarea>
+          <label class="checkline"><input id="alwaysCpu" type="checkbox"> Keep CPU available between requests <small>(for background jobs; can cost more)</small></label>
           <p class="warning">Secrets are sent directly to your private control plane and applied to the deployed service. Never commit them to GitHub.</p>
           <button class="primary" id="deployButton">Deploy backend <span>↗</span></button>
         </form>
