@@ -22,7 +22,7 @@ async function run(command, args, options = {}) {
   return { stdout: result.stdout || "", stderr: result.stderr || "" };
 }
 
-async function deploy({ name, repository, env = {}, onOutput = () => {} }) {
+async function deploy({ name, repository, env = {}, alwaysCpu = false, onOutput = () => {} }) {
   if (!PROJECT) throw new Error("GOOGLE_CLOUD_PROJECT is not configured.");
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ukubot-build-"));
   const service = serviceName(name);
@@ -36,7 +36,7 @@ async function deploy({ name, repository, env = {}, onOutput = () => {} }) {
     await fs.writeFile(envFile, JSON.stringify(env, null, 2), { mode: 0o600 });
 
     onOutput("Building and deploying to Google Cloud Run. This can take several minutes…");
-    const result = await run("gcloud", [
+    const deployArgs = [
       "run", "deploy", service,
       "--source", dir,
       "--project", PROJECT,
@@ -44,7 +44,7 @@ async function deploy({ name, repository, env = {}, onOutput = () => {} }) {
       "--platform", "managed",
       "--allow-unauthenticated",
       "--port", "8080",
-      "--memory", "512Mi",
+      "--memory", "1Gi",
       "--cpu", "1",
       "--min", "0",
       "--max", "1",
