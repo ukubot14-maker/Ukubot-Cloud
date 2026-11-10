@@ -9,85 +9,103 @@ A private, single-owner backend hosting control panel. It deploys ordinary Node.
 - Dashboard: static HTML/CSS/JS.
 - Control plane: this Node.js service, protected by one private owner token.
 - Workloads: each deployed GitHub repository becomes a separate Cloud Run service.
-- Deploy source: public GitHub repository (first MVP).
-- Runtime: Cloud Run HTTPS URL such as `https://my-api-xxxxx-uw.a.run.app`.
+- Source: public GitHub repository in this first MVP.
+- Runtime: a dedicated Cloud Run HTTPS URL for each backend.
 
-## Current MVP scope
+## Current MVP
 
 - Deploy public Node.js repositories.
-- Set runtime environment variables during deployment.
-- List deployments in the current control-plane process.
-- Check deployment jobs and view deployment output.
-- Redeploy a project from its saved repository URL.
-- Delete a Cloud Run service.
-- Private owner-only control API.
+- Supply runtime environment variables (including secrets) at deployment time.
+- Keep a list of deployed services and their URLs.
+- Inspect deployment job status/output.
+- Check Cloud Run service health and delete services.
+- Optional always-allocated CPU for apps that run background work between HTTP requests.
+- One private owner token; no public customer accounts.
 
-Not included yet: GitHub OAuth, multi-user accounts, private repositories, persistent database for dashboard metadata, custom domains, billing, log streaming, and automatic GitHub webhook redeploys.
+Not included yet: private GitHub repositories, durable project metadata database, custom domains, log streaming, billing, automatic GitHub webhook redeploys, or multi-user accounts.
 
-## Important Fabric Pro note
+## Fabric Pro compatibility note
 
-Fabric Pro runs long background generation jobs and currently keeps job state in process memory. Cloud Run can scale instances down or restart them. This MVP can deploy Fabric Pro, but for reliable long-running generation we should next move Fabric Pro's job queue and generated ZIP storage to durable services (for example Cloud Tasks/Cloud Run Jobs plus Cloud Storage or a database). Do not assume the current in-memory jobs survive a restart.
+Fabric Pro uses long-running background generation jobs and stores job state/files in the app's local process/filesystem. When deploying it, tick **Keep CPU available between requests** so background generation can continue between polling requests. This can increase cost while the instance is active.
+
+This does not make in-memory jobs or generated ZIPs durable: a Cloud Run restart or scale-down can still lose them. For reliable production use, move job state and generated files to persistent services. For your personal first test, use one instance and test a small mod before relying on it.
 
 ## Google Cloud setup
 
-Create a Google Cloud project and attach a billing account. Enable:
+Create a Google Cloud project and attach a billing account. Enable the APIs:
 
 ```bash
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
 ```
 
-Create a dedicated service account for the control plane. Grant it the minimum required roles for the MVP:
-- Cloud Run Admin (`roles/run.admin`)
-- Cloud Build Editor (`roles/cloudbuild.builds.editor`)
-- Artifact Registry Writer (`roles/artifactregistry.writer`)
-- Service Account User (`roles/iam.serviceAccountUser`)
+Create a dedicated service account for Ukubot Cloud:
 
-Attach this service account directly to the control-plane Cloud Run service with `--service-account=ukubot-cloud-deployer@YOUR_PROJECT_ID.iam.gserviceaccount.com`. The control plane's Google Cloud CLI uses the attached service identity; do not create or commit a service-account JSON key.
+```bash
+gcloud iam service-accounts create ukubot-cloud-deployer
+```
+
+Grant it the following roles in your project:
+- `roles/run.admin`
+- `roles/cloudbuild.builds.editor`
+- `roles/artifactregistry.writer`
+- `roles/iam.serviceAccountUser`
+
+The control plane should run with this service account attached. Google Cloud's gcloud CLI can use the identity attached to a Cloud Run service; do not create or commit a service-account JSON key. See [Google's gcloud authentication documentation](https://cloud.google.com/sdk/docs/authenticate).
 
 ## Deploy the control plane
 
-Set these environment variables when deploying this repository:
-- `OWNER_TOKEN`: long random secret (at least 32 characters).
-- `GOOGLE_CLOUD_PROJECT`: target Google Cloud project ID.
-- `GOOGLE_CLOUD_REGION`: e.g. `us-west1`.
-- `GOOGLE_APPLICATION_CREDENTIALS`: mounted service-account key path.
-- `ALLOWED_ORIGINS`: comma-separated exact dashboard origins.
+Set these environment variables:
+- `OWNER_TOKEN`: random secret at least 32 characters long.
+- `GOOGLE_CLOUD_PROJECT`: your Google Cloud project ID.
+- `GOOGLE_CLOUD_REGION`: for example, `us-west1`.
+- `ALLOWED_ORIGINS`: exact browser origins allowed to use the dashboard.
 
-Deploy this repository itself to Cloud Run (from your own machine, after installing/authenticating gcloud):
+Deploy from this repository (after installing and authenticating the Google Cloud CLI):
 
 ```bash
 gcloud run deploy ukubot-cloud-control \
   --source . \
+  --project YOUR_PROJECT_ID \
   --region us-west1 \
   --allow-unauthenticated \
-  --set-env-vars GOOGLE_CLOUD_PROJECT=YOUR_PROJECT_ID,GOOGLE_CLOUD_REGION=us-west1,OWNER_TOKEN=YOUR_LONG_RANDOM_TOKEN,ALLOWED_ORIGINS=https://YOUR-ACCOUNT.github.io \
-  --service-account=ukubot-cloud-deployer@YOUR_PROJECT_ID.iam.gserviceaccount.com \\\n  --memory 1Gi --cpu 1 --max-instances 1 --min-instances 0
+  --service-account ukubot-cloud-deployer@YOUR_PROJECT_ID.iam.gserviceaccount.com \
+  --set-env-vars "GOOGLE_CLOUD_PROJECT=YOUR_PROJECT_ID,GOOGLE_CLOUD_REGION=us-west1,OWNER_TOKEN=YOUR_LONG_RANDOM_TOKEN,ALLOWED_ORIGINS=https://YOUR-ACCOUNT.github.io" \
+  --memory 1Gi --cpu 1 --max-instances 1 --min-instances 0
 ```
 
-Attach the dedicated deployer service account to the control-plane Cloud Run service. Do not create or commit service-account keys.
-
-The control plane's container needs the Google Cloud CLI and Git; the included Dockerfile installs them. When using a mounted key, the app activates it with gcloud on startup.
+The control plane container includes Git and the Google Cloud CLI. Its attached service account performs the deployment commands.
 
 ## Dashboard
 
-The dashboard is in `dashboard/`. It can be opened locally or published on GitHub Pages. Set the control-plane URL and owner token in the dashboard's Settings dialog. The token is kept only in the browser tab's sessionStorage.
+The dashboard lives in `dashboard/`. It can be opened locally or published on GitHub Pages. In Settings, enter the control-plane URL and owner token. The token is stored in the current browser tab's `sessionStorage`.
 
-Set `ALLOWED_ORIGINS` to the dashboard's exact origin. For a GitHub Pages project site, the browser Origin is normally `https://YOUR-ACCOUNT.github.io` (not the repository path).
+Set `ALLOWED_ORIGINS` to the dashboard's exact origin. A GitHub Pages project site normally sends the origin `https://YOUR-ACCOUNT.github.io` (the repository path is not part of the origin).
 
 ## Deploy a backend
 
-A repository must have a `package.json` with a start script. Example:
+A supported repository needs a `package.json` start script, for example:
 
 ```json
 { "scripts": { "start": "node server.js" }, "dependencies": { "express": "^4.21.2" } }
 ```
 
-The app must listen on `0.0.0.0` and `process.env.PORT || 8080`.
+The app must listen on `process.env.PORT || 8080` and bind to `0.0.0.0`.
 
-In the dashboard, enter a project name, a public GitHub URL, and optional environment variables. The control plane runs `gcloud run deploy --source` and returns the service URL.
+In the dashboard, enter a service name, public GitHub URL, and optional environment variables (one `KEY=value` per line). For Fabric Pro, for example, you would set its existing `GROQ_API_KEY`, `GROQ_MODEL`, and `CORS_ORIGINS` values there. The key is applied only to the backend runtime, not the GitHub Pages frontend.
+
+The deployer runs `gcloud run deploy --source` and returns the new backend's HTTPS URL.
+
+## API
+
+- `GET /api/health`
+- `GET /api/projects` (owner token required)
+- `POST /api/deployments` (owner token required)
+- `GET /api/jobs/:id` (owner token required)
+- `GET /api/projects/:name/health` (owner token required)
+- `DELETE /api/projects/:name` (owner token required)
 
 ## Costs and safety
 
-Cloud Run has a free usage allowance, not unlimited free hosting. Builds, memory/CPU time, requests, and outbound network usage can incur charges. Configure Google Cloud budget alerts and review usage. A budget alert alone does not stop spending.
+Cloud Run has a free usage allowance, not unlimited free hosting. Builds, CPU/memory time, requests, and outbound traffic can cost money. Always-allocated CPU can cost more than request-based CPU. Set budget alerts and review actual usage; a budget alert alone does not stop charges.
 
-This control plane is intentionally private and single-owner. Never share the owner token. Do not expose it as a public deployment service.
+This is a private, single-owner MVP. Never share the owner token or expose the control API as a public deployment service.
