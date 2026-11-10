@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0a1020">
+  <title>Ukubot Cloud — Backend Hosting</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="#"><span class="logo">U</span>ukubot<span>Cloud</span></a>
+    <p class="section-label">WORKSPACE</p>
+    <a class="nav active" href="#overview">▦ &nbsp; Overview</a>
+    <a class="nav" href="#deploy">＋ &nbsp; Deploy backend</a>
+    <a class="nav" href="#projects">◫ &nbsp; Projects</a>
+    <div class="side-note"><i></i><div><b>Private workspace</b><small>Only your owner token can deploy.</small></div></div>
+  </aside>
+  <main id="overview">
+    <header><div><small>WORKSPACE / OVERVIEW</small><h1>Backend hosting</h1></div><button class="outline" id="settings">⚙ Settings</button></header>
+    <section class="hero">
+      <div><span class="tag"><i></i> NODE.JS · EXPRESS · CLOUD RUN</span><h2>Your APIs.<br><em>Your infrastructure.</em></h2><p>Deploy your backend repositories and get a dedicated HTTPS endpoint. Keep your frontend wherever you want — including GitHub Pages.</p><a href="#deploy" class="button-link">Deploy a backend ↗</a></div>
+      <div class="diagram">
+        <div class="node"><b>GitHub Pages</b><small>Your frontend website</small><label>FRONTEND</label></div>
+        <div class="wire">HTTPS API REQUESTS ↓</div>
+        <div class="node active-node"><b>Ukubot Cloud</b><small>Node.js · Express · APIs</small><label>BACKEND HOST</label></div>
+        <div class="wire">↓</div>
+        <div class="node"><b>Google Cloud Run</b><small>Dedicated service · scales to zero</small><label>RUNTIME</label></div>
+      </div>
+    </section>
+    <section class="stats">
+      <article><small>DEPLOYED BACKENDS</small><b id="count">—</b><span>In your workspace</span></article>
+      <article><small>CONTROL PLANE</small><b id="connection">Not connected</b><span id="connectionHint">Configure API settings</span></article>
+      <article><small>DEPLOY REGION</small><b id="region">Cloud Run</b><span>Google Cloud project</span></article>
+    </section>
+    <section class="columns">
+      <article class="panel" id="deploy">
+        <div class="panel-heading"><div><small>NEW SERVICE</small><h3>Deploy a backend</h3></div><span class="step">01 / 01</span></div>
+        <p>Deploy a public GitHub repository as a dedicated Cloud Run service.</p>
+        <form id="deployForm">
+          <label>Project name</label><input id="name" required pattern="[a-z][a-z0-9-]{1,30}[a-z0-9]" placeholder="fabric-pro-api">
+          <label>Public GitHub repository</label><input id="repo" required type="url" placeholder="https://github.com/owner/repository">
+          <label>Runtime environment variables <small>(optional, one KEY=value per line)</small></label><textarea id="env" rows="4" placeholder="NODE_ENV=production&#10;CORS_ORIGINS=https://your-site.github.io"></textarea>
+          <p class="warning">Secrets are sent directly to your private control plane and applied to the deployed service. Never commit them to GitHub.</p>
+          <button class="primary" id="deployButton">Deploy backend <span>↗</span></button>
+        </form>
+      </article>
+      <article class="panel">
+        <small>FRONTEND INTEGRATION</small><h3>Connect your website</h3>
+        <p>Use the backend URL in your GitHub Pages JavaScript.</p>
+        <pre><code>const API = "https://your-api.run.app";
+
+const response = await fetch(
+  `${API}/api/health`
+);
+const data = await response.json();</code></pre>
+        <div class="tip">✦ <span><b>Keep secrets private.</b><br>Browser JavaScript is public. Store API keys and database credentials on the backend.</span></div>
+      </article>
+    </section>
+    <section class="panel projects" id="projects">
+      <div class="panel-heading"><div><small>YOUR SERVICES</small><h3>Backend projects</h3></div><button class="outline" id="refresh">↻ Refresh</button></div>
+      <div id="projectList" class="empty"><b>No backends deployed yet</b><p>Deploy a GitHub repository to get started.</p></div>
+    </section>
+    <footer>UKUBOT CLOUD <span>Private backend infrastructure for your projects.</span></footer>
+  </main>
+  <dialog id="settingsDialog">
+    <form method="dialog" class="dialog-head"><div><small>CONTROL PLANE</small><h3>Connection settings</h3></div><button class="close">×</button></form>
+    <div class="dialog-body">
+      <label>Control API URL</label><input id="apiUrl" placeholder="https://ukubot-cloud-control-....run.app">
+      <label>Owner token</label><input id="token" type="password" placeholder="Your private owner token">
+      <p>Your token stays in this browser tab's session storage. Do not share it.</p>
+      <button class="primary" id="save">Save connection</button>
+    </div>
+  </dialog>
+  <div id="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
