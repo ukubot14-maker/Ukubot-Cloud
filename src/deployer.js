@@ -51,7 +51,9 @@ async function deploy({ name, repository, env = {}, alwaysCpu = false, onOutput 
       "--concurrency", "40",
       "--env-vars-file", envFile,
       "--quiet"
-    ]);
+    ];
+    if (alwaysCpu) deployArgs.push("--no-cpu-throttling");
+    const result = await run("gcloud", deployArgs);
     onOutput((result.stdout + "\n" + result.stderr).trim().slice(-12000));
 
     const details = await run("gcloud", [
